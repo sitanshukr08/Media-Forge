@@ -262,7 +262,7 @@ with st.sidebar:
     task_code = "translate" if "Translate" in task_type else "transcribe"
     
     st.divider()
-    st.caption("MediaForge v8.0 | Professional Edition")
+    st.caption("MediaForge")
 
 # --- MAIN INTERFACE ---
 st.title("MediaForge | AI Media Architect")
