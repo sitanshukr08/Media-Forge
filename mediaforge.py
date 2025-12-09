@@ -19,6 +19,7 @@ import torch
 import whisper
 import yake
 import numpy as np
+# tkinter imports removed to prevent ImportError in headless environments
 from datetime import timedelta
 from pathlib import Path
 
@@ -58,7 +59,6 @@ if 'media_info' not in st.session_state: st.session_state.media_info = None
 if 'active_url' not in st.session_state: st.session_state.active_url = ""
 
 # --- HELPER UTILITIES ---
-# Removed select_directory() function as it depended on tkinter
 
 def format_timestamp(seconds):
     """Formats seconds into HH:MM:SS,mmm string for SRT."""
@@ -75,16 +75,35 @@ def generate_srt(segments):
         srt += f"{i+1}\n{start} --> {end}\n{enumerate_seg['text'].strip()}\n\n"
     return srt
 
+def get_common_ydl_opts():
+    """Returns common options to bypass 403 Forbidden errors."""
+    return {
+        'quiet': True,
+        'no_warnings': True,
+        'nocheckcertificate': True,
+        # Use Android/Web client to avoid server-side blocks
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'web']
+            }
+        },
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+    }
+
 def download_audio_temp(url):
     """Downloads temporary low-bitrate audio for AI analysis."""
     uid = uuid.uuid4().hex
     path = f"temp_ai_audio_{uid}"
-    ydl_opts = {
+    
+    ydl_opts = get_common_ydl_opts()
+    ydl_opts.update({
         'format': 'bestaudio/best',
         'outtmpl': path,
         'postprocessors': [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '32'}],
-        'quiet': True, 'no_warnings': True
-    }
+    })
+    
     with yt_dlp.YoutubeDL(ydl_opts) as ydl: ydl.download([url])
     return path + ".mp3"
 
@@ -251,7 +270,6 @@ with st.sidebar:
     st.title("💠 Config")
     
     st.markdown("### 📂 Output Path")
-    # Replaced button with text_input to avoid Tkinter crashes in hosted environments
     new_dir = st.text_input("Directory", value=st.session_state.work_dir)
     if new_dir != st.session_state.work_dir:
         st.session_state.work_dir = new_dir
@@ -262,7 +280,7 @@ with st.sidebar:
     task_code = "translate" if "Translate" in task_type else "transcribe"
     
     st.divider()
-    st.caption("MediaForge")
+    st.caption("MediaForge v8.0 | Professional Edition")
 
 # --- MAIN INTERFACE ---
 st.title("MediaForge | AI Media Architect")
@@ -275,7 +293,9 @@ if url_in:
         st.session_state.active_url = url_in
         with st.spinner("🔄 Fetching Manifest..."):
             try:
-                with yt_dlp.YoutubeDL({'quiet':True}) as ydl:
+                # Use common opts for manifest fetching too
+                opts = get_common_ydl_opts()
+                with yt_dlp.YoutubeDL(opts) as ydl:
                     st.session_state.media_info = ydl.extract_info(url_in, download=False)
             except Exception as e:
                 st.error(f"Error fetching URL: {e}")
@@ -314,12 +334,13 @@ if st.session_state.media_info:
             if st.button("🎬 Download Video"):
                 progress_bar = st.progress(0)
                 try:
-                    opts = {
+                    opts = get_common_ydl_opts()
+                    opts.update({
                         'outtmpl': f'{st.session_state.work_dir}/%(title)s.%(ext)s',
                         'format': f'bestvideo[height<={res_choice}]+bestaudio/best[height<={res_choice}]',
                         'progress_hooks': [progress_hook],
                         'merge_output_format': 'mp4'
-                    }
+                    })
                     with yt_dlp.YoutubeDL(opts) as ydl: ydl.download([url_in])
                     st.success(f"Saved to {st.session_state.work_dir}")
                 except Exception as e:
@@ -330,12 +351,13 @@ if st.session_state.media_info:
             if st.button("🎵 Download Audio"):
                 progress_bar = st.progress(0)
                 try:
-                    opts = {
+                    opts = get_common_ydl_opts()
+                    opts.update({
                         'outtmpl': f'{st.session_state.work_dir}/%(title)s.%(ext)s',
                         'format': 'bestaudio/best',
                         'postprocessors': [{'key': 'FFmpegExtractAudio','preferredcodec': aud_fmt}],
                         'progress_hooks': [progress_hook]
-                    }
+                    })
                     with yt_dlp.YoutubeDL(opts) as ydl: ydl.download([url_in])
                     st.success(f"Saved to {st.session_state.work_dir}")
                 except Exception as e:
