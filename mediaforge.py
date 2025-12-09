@@ -19,8 +19,6 @@ import torch
 import whisper
 import yake
 import numpy as np
-import tkinter as tk
-from tkinter import filedialog
 from datetime import timedelta
 from pathlib import Path
 
@@ -60,14 +58,7 @@ if 'media_info' not in st.session_state: st.session_state.media_info = None
 if 'active_url' not in st.session_state: st.session_state.active_url = ""
 
 # --- HELPER UTILITIES ---
-def select_directory():
-    """Opens OS native folder picker dialog."""
-    root = tk.Tk()
-    root.withdraw()
-    root.wm_attributes('-topmost', 1)
-    folder = filedialog.askdirectory(master=root)
-    root.destroy()
-    return folder
+# Removed select_directory() function as it depended on tkinter
 
 def format_timestamp(seconds):
     """Formats seconds into HH:MM:SS,mmm string for SRT."""
@@ -78,10 +69,10 @@ def format_timestamp(seconds):
 def generate_srt(segments):
     """Converts Whisper segments into SRT subtitle format."""
     srt = ""
-    for i, seg in enumerate(segments):
-        start = format_timestamp(seg['start'])
-        end = format_timestamp(seg['end'])
-        srt += f"{i+1}\n{start} --> {end}\n{seg['text'].strip()}\n\n"
+    for i, enumerate_seg in enumerate(segments):
+        start = format_timestamp(enumerate_seg['start'])
+        end = format_timestamp(enumerate_seg['end'])
+        srt += f"{i+1}\n{start} --> {end}\n{enumerate_seg['text'].strip()}\n\n"
     return srt
 
 def download_audio_temp(url):
@@ -260,10 +251,10 @@ with st.sidebar:
     st.title("💠 Config")
     
     st.markdown("### 📂 Output Path")
-    st.code(st.session_state.work_dir)
-    if st.button("Change Directory"):
-        new = select_directory()
-        if new: st.session_state.work_dir = new; st.rerun()
+    # Replaced button with text_input to avoid Tkinter crashes in hosted environments
+    new_dir = st.text_input("Directory", value=st.session_state.work_dir)
+    if new_dir != st.session_state.work_dir:
+        st.session_state.work_dir = new_dir
     
     st.markdown("### 🧠 AI Model Settings")
     model_size = st.selectbox("Whisper Size", ["base", "small", "medium", "large"], index=1)
